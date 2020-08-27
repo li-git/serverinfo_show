@@ -1,0 +1,238 @@
+
+<!doctype html>
+<html>
+<head>
+	<title>Line Chart Multiple Axes</title>
+	<style>
+	canvas {
+		-moz-user-select: none;
+		-webkit-user-select: none;
+		-ms-user-select: none;
+	}
+	</style>
+	<input id="starttime" type="datetime-local"></input>
+	<input id="endtime" type="datetime-local"></input>
+	<button id="search">refresh</button>
+</head>
+<body>
+	<div style="width:50%;">
+		<canvas id="canvas"></canvas>
+	</div>
+	<div style="width:50%;">
+		<canvas id="canvas2"></canvas>
+	</div>
+	<script src="/js/chart.js"></script>
+	<script src="/js/utils.js"></script>
+	<script src="http://libs.baidu.com/jquery/2.1.4/jquery.min.js"></script>
+	<script>
+		var lineChartData = {
+			labels: [],
+			datasets: [{
+				label: 'CPU Percent',
+				borderColor: window.chartColors.red,
+				backgroundColor: window.chartColors.red,
+				fill: false,
+				data: [],
+				yAxisID: 'y-axis-1',
+			}, {
+				label: 'MEM Percent',
+				borderColor: window.chartColors.blue,
+				backgroundColor: window.chartColors.blue,
+				fill: false,
+				data: [],
+				yAxisID: 'y-axis-2'
+			}, {
+				label: 'Loadaverage',
+				borderColor: window.chartColors.green,
+				backgroundColor: window.chartColors.green,
+				fill: false,
+				data: [],
+				yAxisID: 'y-axis-3'
+			},{
+				label: 'Send KB',
+				borderColor: window.chartColors.green,
+				backgroundColor: window.chartColors.yellow,
+				fill: false,
+				data: [],
+				yAxisID: 'y-axis-4'
+			},{
+				label: 'Rev KB',
+				borderColor: window.chartColors.green,
+				backgroundColor: window.chartColors.gray,
+				fill: false,
+				data: [],
+				yAxisID: 'y-axis-5'
+			}]
+		};
+
+		var lineChartData2 = {
+			labels: [],
+			datasets: [{
+				label: 'CPU',
+				borderColor: window.chartColors.red,
+				backgroundColor: window.chartColors.red,
+				fill: false,
+				data: [],
+				yAxisID: 'fs-axis-1',
+			}, {
+				label: 'MEM MB',
+				borderColor: window.chartColors.blue,
+				backgroundColor: window.chartColors.blue,
+				fill: false,
+				data: [],
+				yAxisID: 'fs-axis-2'
+			}, {
+				label: 'Threads',
+				borderColor: window.chartColors.green,
+				backgroundColor: window.chartColors.green,
+				fill: false,
+				data: [],
+				yAxisID: 'fs-axis-3'
+			}]
+		};
+		var draw = function() {
+			//var ctx = document.getElementById('canvas').getContext('2d');
+			var ctx = document.getElementById('canvas').getContext('2d');
+			var ctx2 = document.getElementById('canvas2').getContext('2d');
+			var showInfo = {}
+			var postdata = {}
+			postdata.startTime = $("#starttime").val()
+			postdata.endTime = $("#endtime").val()
+			console.log(postdata)
+			$.ajax({
+				url: '/getinfo',
+				type: 'POST',
+				data: JSON.stringify(postdata),
+				success: function(response) {
+					var rep = $.parseJSON(response)
+					if(rep.result=="success"){
+						lineChartData.labels.length = 0
+						lineChartData.datasets[0].data.length = 0
+						lineChartData.datasets[1].data.length = 0
+						lineChartData.datasets[2].data.length = 0
+						lineChartData.datasets[3].data.length = 0
+						lineChartData.datasets[4].data.length = 0
+						for(var info of rep.data){
+							lineChartData.labels.push(info.Time)
+							lineChartData.datasets[0].data.push(info.Cpu)
+							lineChartData.datasets[1].data.push(info.Mem)
+							lineChartData.datasets[2].data.push(info.Load)
+							lineChartData.datasets[3].data.push(info.SendByte)
+							lineChartData.datasets[4].data.push(info.RevByte)
+						}
+
+						lineChartData2.labels.length = 0
+						lineChartData2.datasets[0].data.length = 0
+						lineChartData2.datasets[1].data.length = 0
+						lineChartData2.datasets[2].data.length = 0
+						for(var info of rep.data){
+							lineChartData2.labels.push(info.Time)
+							lineChartData2.datasets[0].data.push(info.FsCpu)
+							lineChartData2.datasets[1].data.push(info.FsMem)
+							lineChartData2.datasets[2].data.push(info.FsThread)
+						}
+					}else{
+						alert("apply failed!")
+					}
+					window.myLine2 = Chart.Line(ctx2, {
+					data: lineChartData2,
+					options: {
+							responsive: true,
+							hoverMode: 'index',
+							stacked: false,
+							title: {
+								display: true,
+								text: 'App info'
+							},
+							scales: {
+								yAxes: [{
+									type: 'linear',
+									display: true,
+									position: 'left',
+									id: 'fs-axis-1',
+								}, {
+									type: 'linear',
+									display: true,
+									position: 'right',
+									id: 'fs-axis-2',
+									gridLines: {
+										drawOnChartArea: false,
+									},
+								},{
+									type: 'linear',
+									display: true,
+									position: 'right',
+									id: 'fs-axis-3',
+									gridLines: {
+										drawOnChartArea: false,
+									},
+								}],
+							}
+						}
+					});
+
+					window.myLine = Chart.Line(ctx, {
+					data: lineChartData,
+					options: {
+							responsive: true,
+							hoverMode: 'index',
+							stacked: false,
+							title: {
+								display: true,
+								text: 'server info show'
+							},
+							scales: {
+								yAxes: [{
+									type: 'linear',
+									display: true,
+									position: 'left',
+									id: 'y-axis-1',
+								}, {
+									type: 'linear',
+									display: true,
+									position: 'right',
+									id: 'y-axis-2',
+									gridLines: {
+										drawOnChartArea: false,
+									},
+								},{
+									type: 'linear',
+									display: true,
+									position: 'right',
+									id: 'y-axis-3',
+									gridLines: {
+										drawOnChartArea: false,
+									},
+								},{
+									type: 'linear',
+									display: true,
+									position: 'right',
+									id: 'y-axis-4',
+									gridLines: {
+										drawOnChartArea: false,
+									},
+								},{
+									type: 'linear',
+									display: true,
+									position: 'right',
+									id: 'y-axis-5',
+									gridLines: {
+										drawOnChartArea: false,
+									},
+								}],
+							}
+						}
+					});
+
+				}
+			});
+		};
+		window.onload = function(){
+			draw()
+		}
+		$("#search").on('click', function(){
+			draw()
+		});
+	</script>
+</body>
+</html>
