@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -93,6 +94,8 @@ func getPid(pname string) string {
 func getProcessInfo(pname string) (float64, float64, float64) {
 	getinfo_, _ := Asset("getinfo")
 	command := strings.ReplaceAll(string(getinfo_), "__PROCESSNAME__", pname)
+	command = strings.ReplaceAll(string(command), "__SELF__", os.Args[0])
+	//log.Println("shell info:", command)
 	info := strings.Split(shellCommand(command), " ")
 	if len(info) == 3 {
 		mem, _ := strconv.ParseFloat(info[0], 32)
@@ -114,6 +117,7 @@ func watch_timer() {
 		data.Load = int32(loadState.Load1)
 
 		data.FsMem, data.FsCpu, data.FsThread = getProcessInfo(*ProcessName)
+		data.FsCpu = data.FsCpu / 100
 
 		infoContain = append(infoContain, data)
 
@@ -155,6 +159,9 @@ func http_server_run(httpserver string) {
 		AssetInfo: AssetInfo,
 	}
 	http.Handle("/", http.FileServer(&fs))
+	http.HandleFunc("/getAppName", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, *ProcessName)
+	})
 	http.HandleFunc("/getinfo", func(w http.ResponseWriter, r *http.Request) {
 		var responseInfo map[string]interface{}
 		responseInfo = make(map[string]interface{})
@@ -167,8 +174,12 @@ func http_server_run(httpserver string) {
 			startStamp := transTime(req["startTime"].(string))
 			endStamp := transTime(req["endTime"].(string))
 
+			interval := infoContain[1].Stamps - infoContain[0].Stamps
+			startPos := (startStamp - infoContain[0].Stamps) / interval
+			endPos := (endStamp - infoContain[0].Stamps) / interval
+
 			log.Println("start end time ", req["startTime"].(string), startStamp, req["endTime"].(string), endStamp)
-			for _, info := range infoContain {
+			for _, info := range infoContain[startPos:endPos] {
 				if startStamp < info.Stamps && info.Stamps < endStamp {
 					datas = append(datas, info)
 				}

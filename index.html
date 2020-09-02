@@ -25,6 +25,14 @@
 	<script src="/js/utils.js"></script>
 	<script src="http://libs.baidu.com/jquery/2.1.4/jquery.min.js"></script>
 	<script>
+		$.ajax({
+				url: '/getAppName',
+				type: 'POST',
+				data: "",
+				success: function(response) {
+					document.title = response
+				}
+		})
 		var lineChartData = {
 			labels: [],
 			datasets: [{

@@ -1,5 +1,5 @@
 #!/bin/bash
-pid=`ps aux|grep '__PROCESSNAME__'|grep -v grep|grep -v vi|awk '{print $2}'`
+pid=`ps aux|grep '__PROCESSNAME__'|grep -v grep|grep -v vi|grep -v '__SELF__'|awk '{print $2}'`
 if [ "" = "$pid" ];
 then
 	echo "0 0 0"	
