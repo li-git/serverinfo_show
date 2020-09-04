@@ -129,7 +129,6 @@ func watch_timer() {
 				break
 			}
 		}
-		//time.Sleep(time.Second * 2)
 	}
 }
 func main() {
@@ -162,6 +161,9 @@ func http_server_run(httpserver string) {
 	http.HandleFunc("/getAppName", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, *ProcessName)
 	})
+	http.HandleFunc("/getAll", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, fmt.Sprintf("%v", infoContain))
+	})
 	http.HandleFunc("/getMaxValue", func(w http.ResponseWriter, r *http.Request) {
 		s, _ := ioutil.ReadAll(r.Body)
 		var req map[string]interface{}
@@ -175,10 +177,30 @@ func http_server_run(httpserver string) {
 			interval := infoContain[1].Stamps - infoContain[0].Stamps
 			startPos := (startStamp - infoContain[0].Stamps) / interval
 			endPos := (endStamp - infoContain[0].Stamps) / interval
-			if int(endPos) > len(infoContain) {
-				endPos = int64(len(infoContain))
+
+			if int(startPos) > len(infoContain)-1 {
+				startPos = int64(len(infoContain)) - 1
 			}
-			log.Println("startStamp, contain[0].stamp ", startStamp, infoContain[0].Stamps)
+
+			if int(endPos) > len(infoContain)-1 {
+				endPos = int64(len(infoContain)) - 1
+			}
+
+			for index := startPos; index > 0; index-- {
+				startPos = index
+				if infoContain[index].Stamps < startStamp {
+					startStamp = index
+					break
+				}
+			}
+			for index := endPos; index < int64(len(infoContain)); index++ {
+				endPos = index
+				if infoContain[index].Stamps > endStamp {
+					endPos = index
+					break
+				}
+			}
+			log.Println("startStamp, contain[0].stamp, startPos, endPos ", startStamp, infoContain[0].Stamps, startPos, endPos)
 			if startPos < 0 || startPos > endPos {
 				startPos = 0
 			}
@@ -187,6 +209,7 @@ func http_server_run(httpserver string) {
 			}
 			var maxcpu, maxmem, maxthread float64
 			for _, info := range infoContain[startPos:endPos] {
+				//log.Println("info ", info)
 				if startStamp < info.Stamps && info.Stamps < endStamp {
 					if maxcpu < info.FsCpu {
 						maxcpu = info.FsCpu
@@ -218,9 +241,30 @@ func http_server_run(httpserver string) {
 			interval := infoContain[1].Stamps - infoContain[0].Stamps
 			startPos := (startStamp - infoContain[0].Stamps) / interval
 			endPos := (endStamp - infoContain[0].Stamps) / interval
-			if int(endPos) > len(infoContain) {
-				endPos = int64(len(infoContain) - 1)
+
+			if int(startPos) > len(infoContain)-1 {
+				startPos = int64(len(infoContain)) - 1
 			}
+
+			if int(endPos) > len(infoContain)-1 {
+				endPos = int64(len(infoContain)) - 1
+			}
+
+			for index := startPos; index > 0; index-- {
+				startPos = index
+				if infoContain[index].Stamps < startStamp {
+					startStamp = index
+					break
+				}
+			}
+			for index := endPos; index < int64(len(infoContain)); index++ {
+				endPos = index
+				if infoContain[index].Stamps > endStamp {
+					endPos = index
+					break
+				}
+			}
+
 			log.Println("start end time ", req["startTime"].(string), startStamp, req["endTime"].(string), endStamp)
 			for _, info := range infoContain[startPos:endPos] {
 				if startStamp < info.Stamps && info.Stamps < endStamp {
