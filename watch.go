@@ -176,7 +176,13 @@ func http_server_run(httpserver string) {
 			endStamp = int64(req["endTime"].(float64))
 			interval := infoContain[1].Stamps - infoContain[0].Stamps
 			startPos := (startStamp - infoContain[0].Stamps) / interval
+			if startPos < 0 {
+				startPos = 0
+			}
 			endPos := (endStamp - infoContain[0].Stamps) / interval
+			if endPos > int64(len(infoContain)) {
+				endPos = int64(len(infoContain))
+			}
 
 			if int(startPos) > len(infoContain)-1 {
 				startPos = int64(len(infoContain)) - 1
@@ -241,7 +247,12 @@ func http_server_run(httpserver string) {
 			interval := infoContain[1].Stamps - infoContain[0].Stamps
 			startPos := (startStamp - infoContain[0].Stamps) / interval
 			endPos := (endStamp - infoContain[0].Stamps) / interval
-
+			if startPos < 0 {
+				startPos = 0
+			}
+			if endPos > int64(len(infoContain)) {
+				endPos = int64(len(infoContain))
+			}
 			if int(startPos) > len(infoContain)-1 {
 				startPos = int64(len(infoContain)) - 1
 			}
