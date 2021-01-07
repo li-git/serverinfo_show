@@ -18,6 +18,7 @@ import (
 	"github.com/shirou/gopsutil/load"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
+	"github.com/shirou/gopsutil/process"
 )
 
 var (
@@ -27,6 +28,7 @@ var (
 	byteSent    uint64
 	byteRev     uint64
 	cpuCors     int
+	saveHours   *int
 )
 
 type sInfo struct {
@@ -45,6 +47,7 @@ type sInfo struct {
 func init() {
 	httpserver = flag.String("httpserver", "0.0.0.0:888", "httpserver addr")
 	ProcessName = flag.String("Pname", "freeswitch", " process name ")
+	saveHours = flag.Int("hour", 24, "saved date for how many hours")
 	cpuCors, _ = cpu.Counts(false)
 }
 func GetCpuPercent() float64 {
@@ -84,11 +87,6 @@ func shellCommand(command string) string {
 		return resp
 	}
 }
-func getPid(pname string) string {
-	pid := shellCommand(`ps -el|grep freeswitch|grep -v grep|awk '{print $4}'`)
-	log.Println(" GetPid ", pname, pid)
-	return pid
-}
 
 //get process cpu percent, mem percent
 func getProcessInfo(pname string) (float64, float64, float64) {
@@ -105,6 +103,16 @@ func getProcessInfo(pname string) (float64, float64, float64) {
 	}
 	return 0, 0, 0
 }
+func getProcess(processName string) *process.Process {
+	processes, _ := process.Processes()
+	for _, process := range processes {
+		pname, _ := process.Name()
+		if pname == processName {
+			return process
+		}
+	}
+	return nil
+}
 func watch_timer() {
 	for {
 		var data sInfo
@@ -116,12 +124,18 @@ func watch_timer() {
 		loadState, _ := load.Avg()
 		data.Load = int32(loadState.Load1)
 
-		data.FsMem, data.FsCpu, data.FsThread = getProcessInfo(*ProcessName)
-		data.FsCpu = data.FsCpu / 100
+		//data.FsMem, data.FsCpu, data.FsThread = getProcessInfo(*ProcessName)
+		//data.FsCpu = data.FsCpu / 100
 
+		if pInfo := getProcess(*ProcessName); pInfo != nil {
+			meminfo, _ := pInfo.MemoryInfo()
+			threadnum, _ := pInfo.NumThreads()
+			cpuinfo, _ := pInfo.Percent(3 * time.Second)
+			log.Println(threadnum, meminfo.RSS/(1024*1024), cpuinfo)
+			data.FsMem, data.FsThread, data.FsCpu = float64(meminfo.RSS/(1024*1024)), float64(threadnum), float64(cpuinfo)
+		}
 		infoContain = append(infoContain, data)
-
-		expire_time := time.Now().UTC().Unix() - 3600*12 //save 12h data
+		expire_time := time.Now().UTC().Unix() - 3600*(int64)(*saveHours) //save 12h data
 		for index, info := range infoContain {
 			if info.Stamps < expire_time {
 				infoContain = infoContain[index:]
@@ -135,8 +149,6 @@ func main() {
 	flag.Parse()
 	go watch_timer()
 	http_server_run(*httpserver)
-	for {
-	}
 }
 func transTime(format string) int64 {
 	format = strings.Replace(format, "T", " ", 1)
@@ -205,45 +217,12 @@ func http_server_run(httpserver string) {
 			startStamp := transTime(req["startTime"].(string))
 			endStamp := transTime(req["endTime"].(string))
 
-			interval := infoContain[1].Stamps - infoContain[0].Stamps
-			startPos := (startStamp - infoContain[0].Stamps) / interval
-			endPos := (endStamp - infoContain[0].Stamps) / interval
-			if startPos < 0 {
-				startPos = 0
-			}
-			if endPos > int64(len(infoContain)) {
-				endPos = int64(len(infoContain))
-			}
-			if int(startPos) > len(infoContain)-1 {
-				startPos = int64(len(infoContain)) - 1
-			}
-
-			if int(endPos) > len(infoContain)-1 {
-				endPos = int64(len(infoContain)) - 1
-			}
-
-			for index := startPos; index > 0; index-- {
-				startPos = index
-				if infoContain[index].Stamps < startStamp {
-					startStamp = index
-					break
-				}
-			}
-			for index := endPos; index < int64(len(infoContain)); index++ {
-				endPos = index
-				if infoContain[index].Stamps > endStamp {
-					endPos = index
-					break
-				}
-			}
-
 			log.Println("start end time ", req["startTime"].(string), startStamp, req["endTime"].(string), endStamp)
-			for _, info := range infoContain[startPos:endPos] {
+			for _, info := range infoContain {
 				if startStamp < info.Stamps && info.Stamps < endStamp {
 					datas = append(datas, info)
 				}
 			}
-
 		} else {
 			var start_pos int
 			lens := len(infoContain)
