@@ -114,7 +114,19 @@ func getProcess(processName string) *process.Process {
 	return nil
 }
 func watch_timer() {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println("error:", err)
+		}
+		watch_timer()
+	}()
+	pInfo := getProcess(*ProcessName)
 	for {
+		if pInfo == nil {
+			pInfo = getProcess(*ProcessName)
+			time.Sleep(time.Second * 1)
+			continue
+		}
 		var data sInfo
 		data.Cpu = int32(GetCpuPercent())
 		data.Mem = int32(GetMemPercent())
@@ -127,13 +139,16 @@ func watch_timer() {
 		//data.FsMem, data.FsCpu, data.FsThread = getProcessInfo(*ProcessName)
 		//data.FsCpu = data.FsCpu / 100
 
-		if pInfo := getProcess(*ProcessName); pInfo != nil {
-			meminfo, _ := pInfo.MemoryInfo()
-			threadnum, _ := pInfo.NumThreads()
-			cpuinfo, _ := pInfo.Percent(3 * time.Second)
-			log.Println(threadnum, meminfo.RSS/(1024*1024), cpuinfo)
-			data.FsMem, data.FsThread, data.FsCpu = float64(meminfo.RSS/(1024*1024)), float64(threadnum), float64(cpuinfo)
+		threadnum, _ := pInfo.NumThreads()
+		if threadnum == 0 {
+			pInfo = nil
+			continue
 		}
+		meminfo, _ := pInfo.MemoryInfo()
+		cpuinfo, _ := pInfo.Percent(3 * time.Second)
+		log.Println(threadnum, meminfo.RSS/(1024*1024), cpuinfo)
+		data.FsMem, data.FsThread, data.FsCpu = float64(meminfo.RSS/(1024*1024)), float64(threadnum), float64(cpuinfo)
+
 		infoContain = append(infoContain, data)
 		expire_time := time.Now().UTC().Unix() - 3600*(int64)(*saveHours) //save 12h data
 		for index, info := range infoContain {
