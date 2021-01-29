@@ -45,7 +45,7 @@ type sInfo struct {
 }
 
 func init() {
-	httpserver = flag.String("httpserver", "0.0.0.0:888", "httpserver addr")
+	httpserver = flag.String("httpserver", "0.0.0.0:8888", "httpserver addr")
 	ProcessName = flag.String("Pname", "freeswitch", " process name ")
 	saveHours = flag.Int("hour", 24, "saved date for how many hours")
 	cpuCors, _ = cpu.Counts(false)
@@ -70,7 +70,7 @@ func getNetInfo() (uint64, uint64) {
 		byteRev = byteRev_tmp
 		return 0, 0
 	}
-	ret_send, ret_rev := (byteSent_tmp-byteSent)/1024/3, (byteRev_tmp-byteRev)/1024/3
+	ret_send, ret_rev := (byteSent_tmp-byteSent)/1024/6, (byteRev_tmp-byteRev)/1024/6
 	byteSent = byteSent_tmp
 	byteRev = byteRev_tmp
 	return ret_send, ret_rev
